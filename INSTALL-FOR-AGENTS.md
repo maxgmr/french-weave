@@ -109,6 +109,9 @@ It always installs the extension folder and native host, even if the person didn
 - Chrome and Chromium native messaging host manifests (user level, no sudo):
   - Linux: `~/.config/google-chrome/NativeMessagingHosts/`, `~/.config/chromium/NativeMessagingHosts/`
   - macOS: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`, `.../Chromium/NativeMessagingHosts/`
+- A Firefox native messaging host manifest for the add-on `french-weave@maxgmr` (this fork only):
+  - Linux: `~/.mozilla/native-messaging-hosts/`, plus `~/.config/mozilla/native-messaging-hosts/` if `~/.config/mozilla` exists
+  - macOS: `~/Library/Application Support/Mozilla/NativeMessagingHosts/`
 
 ## 4. Verify
 
@@ -142,6 +145,15 @@ Tell the person, in plain English (leave out the items for things they didn't pi
 
 You are done when `check` is all `ok` and only the HUMAN steps above remain. If you cloned the repo only to read
 these instructions, delete that clone (setup keeps its own copy in `~/.french-weave`).
+
+## Firefox (this fork)
+
+If the person uses Firefox, run setup from a clone of this fork, not the plugin copy: only this fork's
+`scripts/fw.py` writes the Firefox host. In the hand-over, give the README's "Firefox (this fork)" steps instead of
+the Chrome ones. Signing needs the person's own AMO credentials: never ask for them in chat or print them. If the
+clone has a `.env` with them, you may run `python3 scripts/sign_firefox.py`; otherwise the person runs it. On Snap
+Firefox, tell them to allow the one-time portal prompt that appears the first time they click **Sync words**.
+
 
 ## Uninstall
 

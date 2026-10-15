@@ -40,6 +40,37 @@ through level 35.
 
 Agents: follow [INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.md).
 
+## Firefox (this fork)
+
+The same extension runs in Firefox 142 or newer on desktop, including the Snap build on Ubuntu. Firefox only keeps
+add-ons it can verify, so instead of "Load unpacked" you sign your own copy as an unlisted add-on on
+addons.mozilla.org (AMO). It is never listed publicly, and the automatic review takes minutes.
+
+1. From this checkout, run `python3 scripts/fw.py setup` (same flags as above), then `python3 scripts/fw.py check`.
+   Besides the Chrome files, setup writes the Firefox native host for the add-on ID `french-weave@maxgmr` to
+   `~/.mozilla/native-messaging-hosts/` (macOS: `~/Library/Application Support/Mozilla/NativeMessagingHosts/`).
+2. Once: create AMO API credentials at https://addons.mozilla.org/developers/addon/api/key/ and put them in a
+   `.env` file at the repo root (git ignores it; `chmod 600 .env`):
+   ```
+   WEB_EXT_API_KEY=user:12345:678
+   WEB_EXT_API_SECRET=...
+   ```
+3. Commit any changes under `extension/`, then run `python3 scripts/sign_firefox.py`. It needs Node.js (`npx` fetches
+   `web-ext`) and saves the signed `.xpi` in `dist/`. `--lint-only` checks the add-on without signing.
+4. In Firefox: `about:addons` > gear menu > **Install Add-on From File** > the `.xpi`. Then click the French Weave
+   toolbar icon and **Allow all websites** (or tick **This site**), and paste a Gemini key if setup didn't store one.
+5. Snap Firefox asks once, through the desktop portal, whether Firefox may start the French Weave host; allow it.
+   To revoke that later:
+   `gdbus call --session --dest org.freedesktop.impl.portal.PermissionStore --object-path /org/freedesktop/impl/portal/PermissionStore --method org.freedesktop.impl.portal.PermissionStore.Delete webextensions com.frenchweave.host`
+
+**Updating:** after pulling or changing code, rerun setup (your progress is kept), commit, sign again, and install
+the new `.xpi` over the old one; settings and a pasted key are kept. Signed copies are versioned
+`<manifest version>.<commit count>`, because AMO signs each version only once.
+
+**Removing:** remove the add-on in `about:addons`, then run `python3 scripts/fw.py uninstall`. It removes the Chrome
+and Firefox host files but keeps `~/.french-weave` (your progress). Also run the `gdbus` command above on Snap.
+
+
 ## What it does
 
 - **Claude Code and Codex**: a prompt hook gives the model your stage and word lists every turn. Every sentence
