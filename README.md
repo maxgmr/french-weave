@@ -40,13 +40,48 @@ through level 35.
 
 Agents: follow [INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.md).
 
+## Set up by hand (no agent)
+
+An agent only asks the questions above and runs these commands for you. You need Python 3.9+; Claude Code and
+Codex are optional.
+
+```sh
+git clone -b firefox https://github.com/maxgmr/french-weave && cd french-weave
+python3 scripts/fw.py setup --dry-run     # shows what it would do; changes nothing
+python3 scripts/fw.py setup               # plus any options below
+python3 scripts/fw.py check               # every line should say ok
+```
+
+| You want | Add to `setup` |
+|---|---|
+| Some French already | `--known-top 40` (a few basic words) or `--known-top 150` (simple French) |
+| The extension only on sites you turn on | `--sites ask` (default: every site; you can still turn sites off) |
+| The Gemini key from a file (holding only the key) | `--gemini-key-file PATH`; otherwise paste it into the extension popup |
+| French in Codex CLI | `--codex`, then pick **Trust all and continue** at the next `codex` start |
+| Chrome or Chromium run with `--user-data-dir` | `--user-data-dir DIR` (repeatable) |
+
+Rerunning setup is safe: it never resets your progress, and leaving out `--sites` keeps your earlier choice. Then
+pick what you use:
+
+- **Firefox**: see [Firefox (this fork)](#firefox-this-fork) below.
+- **Chrome**: `chrome://extensions` > **Developer mode** > **Load unpacked** > `~/.french-weave/extension`, then the
+  French Weave toolbar icon > **Allow all websites** (or tick **This site**).
+- **Claude Code**: `claude plugin marketplace add jackieoliver/french-weave`, then
+  `claude plugin install french-weave@french-weave`. Its hook and `/french-weave:*` commands use the word state
+  this setup made. Don't run `/french-weave:setup`: it is the upstream setup, which doesn't install the Firefox
+  host. Rerun `scripts/fw.py setup` from this checkout instead.
+- **claude.ai or ChatGPT**: `python3 scripts/fw.py export` (or `export --chatgpt`) and paste the block as described above.
+
+Without Claude Code or Codex, the extension still works: words advance from what you see on web pages, and every
+command in [Commands](#commands-claude-code) runs as `python3 ~/.french-weave/app/scripts/fw.py <command>`.
+
 ## Firefox (this fork)
 
 The same extension runs in Firefox 142 or newer on desktop, including the Snap build on Ubuntu. Firefox only keeps
 add-ons it can verify, so instead of "Load unpacked" you sign your own copy as an unlisted add-on on
 addons.mozilla.org (AMO). It is never listed publicly, and the automatic review takes minutes.
 
-1. From this checkout, run `python3 scripts/fw.py setup` (same flags as above), then `python3 scripts/fw.py check`.
+1. Run setup and check from this checkout, as in [Set up by hand](#set-up-by-hand-no-agent).
    Besides the Chrome files, setup writes the Firefox native host for the add-on ID `french-weave@maxgmr` to
    `~/.mozilla/native-messaging-hosts/` (macOS: `~/Library/Application Support/Mozilla/NativeMessagingHosts/`).
 2. Once: create AMO API credentials at https://addons.mozilla.org/developers/addon/api/key/ and put them in a
