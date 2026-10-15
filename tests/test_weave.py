@@ -453,6 +453,11 @@ FAKE_KEY = 'AIzaTEST_placeholder_not_a_real_key_0000'
 
 
 class Setup(Home):
+    def firefox_host(self, base='.mozilla/native-messaging-hosts'):
+        if sys.platform == 'darwin':
+            base = 'Library/Application Support/Mozilla/NativeMessagingHosts'
+        return self.home / base / f'{fw.HOST_NAME}.json'
+
     def test_setup_installs_extension_host_and_key(self):
         key = self.home / 'key.txt'
         key.write_text(f'  {FAKE_KEY} \n')
@@ -472,6 +477,11 @@ class Setup(Home):
         self.assertEqual(manifest['allowed_origins'], [f'chrome-extension://{fw.EXTENSION_ID}/'])
         launcher = Path(manifest['path'])
         self.assertTrue(os.access(launcher, os.X_OK))
+        # Firefox gets the same host under its own key, never the Chrome one.
+        firefox = json.loads(self.firefox_host().read_text())
+        self.assertEqual(firefox['allowed_extensions'], [fw.GECKO_ID])
+        self.assertNotIn('allowed_origins', firefox)
+        self.assertEqual(firefox['path'], manifest['path'])
         # The installed copy answers on its own, without the plugin folder.
         msg = json.dumps({'type': 'state'}).encode()
         result = subprocess.run([str(launcher)], input=struct.pack('=I', len(msg)) + msg, capture_output=True, timeout=30,
@@ -549,6 +559,27 @@ class Setup(Home):
         key = json.loads((ROOT / 'extension' / 'manifest.json').read_text())['key']
         digest = hashlib.sha256(base64.b64decode(key)).hexdigest()[:32]
         self.assertEqual(''.join(chr(ord('a') + int(c, 16)) for c in digest), fw.EXTENSION_ID)
+
+    def test_gecko_id_matches_manifest(self):
+        gecko = json.loads((ROOT / 'extension' / 'manifest.json').read_text())['browser_specific_settings']['gecko']
+        self.assertEqual(gecko['id'], fw.GECKO_ID)
+
+    @unittest.skipIf(sys.platform == 'darwin', 'XDG folders are Linux only')
+    def test_firefox_xdg_folder_only_when_present(self):
+        self.run_setup()
+        self.assertFalse((self.home / '.config' / 'mozilla').exists())
+        (self.home / '.config' / 'mozilla').mkdir(parents=True)
+        self.run_setup()
+        xdg = json.loads(self.firefox_host('.config/mozilla/native-messaging-hosts').read_text())
+        self.assertEqual(xdg['allowed_extensions'], [fw.GECKO_ID])
+
+    def test_uninstall_removes_firefox_host(self):
+        self.run_setup()
+        self.assertTrue(self.firefox_host().exists())
+        with mock.patch.object(Path, 'home', return_value=self.home), \
+                mock.patch.dict(os.environ, {'XDG_CONFIG_HOME': ''}), mock.patch('sys.stdout', new=io.StringIO()):
+            fw.main(['uninstall'])
+        self.assertFalse(self.firefox_host().exists())
 
 
 if __name__ == '__main__':
