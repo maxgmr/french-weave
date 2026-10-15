@@ -9,7 +9,7 @@ signed .xpi in dist/. Install it from about:addons > gear menu >
 
 Needs Node.js (npx runs web-ext) and AMO API credentials
 (https://addons.mozilla.org/developers/addon/api/key/) in WEB_EXT_API_KEY and
-WEB_EXT_API_KEY_SECRET, from the environment, or a .env file in the repo root.
+WEB_EXT_API_SECRET, from the environment, or a .env file in the repo root.
 
 The signed copy's version is <manifest_version>.<commit_count> because AMO signs
 each version only once: commit before signing again. Chrome-only manifest fields
@@ -27,7 +27,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
-CREDENTIALS = ("WEB_EXT_API_KEY", "WEB_EXT_API_KEY_SECRET")
+CREDENTIALS = ("WEB_EXT_API_KEY", "WEB_EXT_API_SECRET")
 IGNORE = shutil.ignore_patterns(
     "test", "node_modules", "package.json", "bun.lock"
 )  # Keep in sync with fw.py setup
