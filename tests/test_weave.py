@@ -22,6 +22,7 @@ import weave  # noqa: E402
 import fw_host  # noqa: E402
 import fw  # noqa: E402
 import export  # noqa: E402
+import sign_firefox # noqa: E402
 
 
 def line(text, day='2026-10-09', sidechain=False):
@@ -580,6 +581,18 @@ class Setup(Home):
                 mock.patch.dict(os.environ, {'XDG_CONFIG_HOME': ''}), mock.patch('sys.stdout', new=io.StringIO()):
             fw.main(['uninstall'])
         self.assertFalse(self.firefox_host().exists())
+
+    class SignFirefox(unittest.TestCase):
+        def test_signed_copy_gets_a_build_version_and_no_chrome_fields(self):
+            manifest = json.loads((ROOT / 'extension' / 'manifest.json').read_text())
+            built = sign_firefox.firefox_manifest(manifest, 42)
+            self.assertEqual(built['version'], manifest['version'] + '.42')
+            self.assertNotIn('key', built)
+            self.assertEqual(built['background'], {'scripts': ['src/background.js'], 'type': 'module'})
+            self.assertEqual(built['browser_specific_settings'], manifest['browser_specific_settings'])
+            self.assertIn('service_worker', manifest['background']) # ensure source manifest is left alone
+            with self.assertRaises(SystemExit):
+                sign_firefox.firefox_manifest({**manifest, 'version': '1.2.3.4'}, 42)
 
 
 if __name__ == '__main__':
