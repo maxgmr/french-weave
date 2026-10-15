@@ -36,6 +36,7 @@ import export  # noqa: E402
 
 HOST_NAME = 'com.frenchweave.host'
 EXTENSION_ID = 'ckihjnkijacemibkblmjfjgpffflbced'  # fixed by the "key" in extension/manifest.json
+GECKO_ID = 'french-weave@maxgmr' # fixed by browser_specific_settings.gecko.id in extension/manifest.json
 
 
 def host_dirs(extra=()):
@@ -49,6 +50,19 @@ def host_dirs(extra=()):
     config = Path(os.environ.get('XDG_CONFIG_HOME') or home / '.config')
     return [config / 'google-chrome' / 'NativeMessagingHosts', config / 'chromium' / 'NativeMessagingHosts'] + extra
 
+def firefox_host_dirs():
+    """User-level native messaging host folders for Firefox. The XDG folder is only added if
+    Firefox already keeps its files under ~/.config/mozilla."""
+    home = Path.home()
+    if sys.platform == 'darwin':
+        return [home / 'Library' / 'Application Support' / 'Mozilla' / 'NativeMessagingHosts']
+    dirs = [home / '.mozilla' / 'native-messaging-hosts']
+    xdg = Path(os.environ.get('XDG_CONFIG_HOME') or home / '.config') / 'mozilla'
+    if xdg.is_dir():
+        dirs.append(xdg / 'native-messaging-hosts')
+
+    return dirs
+
 
 def plan(extra=()):
     root, home = fwlib.PLUGIN_ROOT, fwlib.home()
@@ -61,7 +75,9 @@ def plan(extra=()):
         'extension_dir': str(home / 'extension'),
         'host_launcher': str(home / 'app' / 'fw-host'),
         'host_manifests': [str(d / f'{HOST_NAME}.json') for d in host_dirs(extra)],
+        'firefox_host_manifests': [str(d / f'{HOST_NAME}.json') for d in firefox_host_dirs()],
         'extension_id': EXTENSION_ID,
+        'gecko_id': GECKO_ID,
         'codex_cli': shutil.which('codex'),
     }
 
@@ -179,6 +195,12 @@ def setup(args):
     for directory in host_dirs(args.user_data_dir):
         directory.mkdir(parents=True, exist_ok=True)
         (directory / f'{HOST_NAME}.json').write_text(json.dumps(manifest, indent=1) + '\n')
+    # Firefox names the allowed extension by its gecko ID under a different key; the rest is the same.
+    firefox_manifest = {**manifest, 'allowed_extensions': [GECKO_ID]}
+    del firefox_manifest['allowed_origins']
+    for directory in firefox_host_dirs():
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / f'{HOST_NAME}.json').write_text(json.dumps(firefox_manifest, indent=1) + '\n')
     if key:
         path = home / 'gemini_key'
         path.write_text(key + '\n')
@@ -199,6 +221,7 @@ def setup(args):
     sites = (state.get('prefs') or {}).get('extension_sites', 'all')
     print(f'  extension:   {"every site; turn any off from the toolbar" if sites == "all" else "only sites you turn on"}')
     print(f'  native host: {", ".join(info["host_manifests"])}')
+    print(f'  Firefox host: {", ".join(info["host_manifests"])}')
     print(f'  Gemini key:  {"stored for the extension" if key or (home / "gemini_key").exists() else "not stored; paste it in the extension popup"}')
     print('Human steps left (Chrome blocks scripts from doing these):')
     print('  1. Open chrome://extensions and switch on Developer mode (top right).')
@@ -210,6 +233,8 @@ def setup(args):
         print('     on each site you want, tick "This site" (Chrome asks for that site).')
     if not key and not (home / 'gemini_key').exists():
         print('     Paste a Gemini API key (https://aistudio.google.com/apikey).')
+    print('  Firefox instead of 1-2: sign with scripts/sign_firefox.py, then about:addons > gear menu >')
+    print('     "Install Add-on From File" > the .xpi in dist/; then step 3 in its toolbar popup.')
     print('Chat weaving runs wherever the plugin is enabled; sessions opened from now on pick it up.')
 
 
@@ -232,6 +257,10 @@ def check(_args):
         manifest = fwlib.read_json(path)
         report(bool(manifest) and manifest.get('allowed_origins') == [f'chrome-extension://{EXTENSION_ID}/'],
                f'native host manifest {path}')
+    for directory in firefox_host_dirs():
+        path = directory / f'{HOST_NAME}.json'
+        manifest = fwlib.read_json(path)
+        report(bool(manifest) and manifest.get('allowed_extensions') == [GECKO_ID], f'Firefox native host manifest {path}')
     launcher = home / 'app' / 'fw-host'
     try:
         message = json.dumps({'type': 'ping'}).encode()
@@ -264,7 +293,7 @@ def uninstall(args):
             if not args.dry_run:
                 data['hooks']['UserPromptSubmit'] = kept
                 fwlib.write_json(path, data)
-    for directory in host_dirs():
+    for directory in host_dirs() + firefox_host_dirs():
         path = directory / f'{HOST_NAME}.json'
         if path.exists():
             print(('would remove ' if args.dry_run else 'removed ') + str(path))
